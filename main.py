@@ -1,8 +1,34 @@
-import matplotlib.pyplot as plt
+from tkinter import *
+from tkinter.ttk import *
+from tkinter import filedialog
+from tkinter import messagebox
 from Utils import *
-from main2 import *
+from SteadyStateDict import *
+from DecayDict import *
+from FluorescenceIntensityDict import *
 
-def runAnalysis(SS_pathname, decay_pathname, tUpperLimit, includeTRES, includeCT):
+root = Tk()
+root.title("Stokes Shift Analysis")
+root.geometry("800x500")
+
+def runReplicate(FI_dict, trange):
+
+    FI_dict.conductLogNormalFits(trange)
+    FI_dict.graphNormalizedTRES(trange)
+    FI_dict.graphNormalizedCT(trange)
+    FI_dict.fitTwoExponentialDecays(trange)
+
+    return FI_dict
+
+def findSteadyStateData(steadyStateFilename):
+    SS_filename = filedialog.askopenfilename(initialdir="/", title="Select A File", filetypes=(("Excel Files","*.xlsx"), ("all files", "*.*")))
+    steadyStateFilename.config(text=SS_filename)    
+
+def findDecayData(decayFilename):
+    decay_filename = filedialog.askopenfilename(initialdir="/", title="Select A File", filetypes=(("Excel Files","*.xlsx"), ("all files", "*.*")))
+    decayFilename.config(text=decay_filename)
+
+def runAnalysis(SS_pathname, decay_pathname, tUpperLimit, includeTRES, includeCT, root):
 
     trange = np.linspace(0, tUpperLimit, 1001, endpoint=True)
 
@@ -10,11 +36,15 @@ def runAnalysis(SS_pathname, decay_pathname, tUpperLimit, includeTRES, includeCT
 
     replicates = list(SS_df.to_dict()["Wavelength"].values()).count('Wavelength') # counts how many replicates are in the given data
 
+    messagebox.askyesnocancel(message="Detected data with {0} replicates, is this correct?".format(replicates))
+
     print("detected data with {0} replicates".format(replicates))
 
     wavelengthCount = len(splitCol(list(SS_df.to_dict()["Wavelength"].values()), "Wavelength")[0]) # counts how many wavelengths are in the given data
 
-    print("detected data with {0} different wavelengths".format(wavelengthCount))
+    messagebox.askyesnocancel(message="Detected data at {0} different wavelengths, is this correct?".format(wavelengthCount))
+
+    print("detected data at {0} different wavelengths".format(wavelengthCount))
 
     SSstart = 0
     SSstop = wavelengthCount
@@ -23,7 +53,9 @@ def runAnalysis(SS_pathname, decay_pathname, tUpperLimit, includeTRES, includeCT
 
     temperatureCount = int(((len(decay_df) + 1)/(replicates + 1))/(wavelengthCount + 1))
 
-    print("detected data with {0} different temperatures".format(temperatureCount))
+    messagebox.askyesnocancel(message="Detected data at {0} different temperatures, is this correct?".format(temperatureCount))
+
+    print("detected data at {0} different temperatures".format(temperatureCount))
 
     decayStart = 0
     decayStop = int((len(decay_df) - replicates)/(replicates + 1))
@@ -87,3 +119,35 @@ def runAnalysis(SS_pathname, decay_pathname, tUpperLimit, includeTRES, includeCT
     plt.ylabel("ln(1/tau)")
 
     plt.show()
+
+steadyStateButton = Button(root, text="Select Steady State Data", command=lambda: findSteadyStateData(steadyStateFilename))
+steadyStateButton.grid(row=0, column=0)
+
+steadyStateFilename = Label(root, text="None selected")
+steadyStateFilename.grid(row=0, column=1, columnspan=2)
+
+decayButton = Button(root, text="Select Decay Data", command=lambda: findDecayData(decayFilename))
+decayButton.grid(row=1, column=0)
+
+decayFilename = Label(root, text="None selected")
+decayFilename.grid(row=1, column=1, columnspan=2)
+
+# def run(steadyStateButton, decayButton, tUpperLimit, includeTRES, includeCT):
+#     runAnalysis(steadyStateButton["text"], decayButton["text"], tUpperLimit, includeTRES, includeCT)
+
+includeTRES = IntVar()
+includeTRESbutton = Checkbutton(root, text="Include TRES plots", var=includeTRES)
+includeTRESbutton.grid(row=2, column=0)
+
+includeCT = IntVar()
+includeCTbutton = Checkbutton(root, text="Include normalized c(t) plot", var=includeCT)
+includeCTbutton.grid(row=3, column=0)
+
+upperLimitEntryLabel = Label(root, text="Time upper limit (ns)")
+upperLimitEntry = Entry(root)
+tUpperLimit = 5
+
+runButton = Button(root, text="Run", command=lambda: runAnalysis(steadyStateFilename["text"], decayFilename["text"], tUpperLimit, includeTRES, includeCT, root))
+runButton.grid(row=4, column=0)
+
+root.mainloop()

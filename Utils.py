@@ -1,4 +1,7 @@
 import numpy as np
+import pandas as pd
+from tkinter import *
+from tkinter import messagebox
 from scipy.optimize import curve_fit, least_squares
 from scipy.stats import chisquare, linregress
 import matplotlib.pyplot as plt
