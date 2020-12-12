@@ -11,9 +11,9 @@ root = Tk()
 root.title("Stokes Shift Analysis")
 root.geometry("800x500")
 
-def runReplicate(FI_dict, trange):
+def runReplicate(FI_dict, trange, root):
 
-    FI_dict.conductLogNormalFits(trange)
+    FI_dict.conductLogNormalFits(trange, root)
     FI_dict.graphNormalizedTRES(trange)
     FI_dict.graphNormalizedCT(trange)
     FI_dict.fitTwoExponentialDecays(trange)
@@ -36,13 +36,19 @@ def runAnalysis(SS_pathname, decay_pathname, tUpperLimit, includeTRES, includeCT
 
     replicates = list(SS_df.to_dict()["Wavelength"].values()).count('Wavelength') # counts how many replicates are in the given data
 
-    messagebox.askyesnocancel(message="Detected data with {0} replicates, is this correct?".format(replicates))
+    replicateConfirmation = messagebox.askyesnocancel(message="Detected data with {0} replicates, is this correct?".format(replicates))
+
+    if not replicateConfirmation:
+        sys.exit("Incorrect number of replicates detected, exiting program")
 
     print("detected data with {0} replicates".format(replicates))
 
     wavelengthCount = len(splitCol(list(SS_df.to_dict()["Wavelength"].values()), "Wavelength")[0]) # counts how many wavelengths are in the given data
 
-    messagebox.askyesnocancel(message="Detected data at {0} different wavelengths, is this correct?".format(wavelengthCount))
+    wavelengthConfirmation = messagebox.askyesnocancel(message="Detected data at {0} different wavelengths, is this correct?".format(wavelengthCount))
+
+    if not wavelengthConfirmation:
+            sys.exit("Incorrect number of wavelengths detected, exiting program")
 
     print("detected data at {0} different wavelengths".format(wavelengthCount))
 
@@ -53,7 +59,10 @@ def runAnalysis(SS_pathname, decay_pathname, tUpperLimit, includeTRES, includeCT
 
     temperatureCount = int(((len(decay_df) + 1)/(replicates + 1))/(wavelengthCount + 1))
 
-    messagebox.askyesnocancel(message="Detected data at {0} different temperatures, is this correct?".format(temperatureCount))
+    temperatureConfirmation = messagebox.askyesnocancel(message="Detected data at {0} different temperatures, is this correct?".format(temperatureCount))
+
+    if not temperatureConfirmation:
+        sys.exit("Incorrect number of temperatures detected, exiting program")
 
     print("detected data at {0} different temperatures".format(temperatureCount))
 
@@ -73,11 +82,11 @@ def runAnalysis(SS_pathname, decay_pathname, tUpperLimit, includeTRES, includeCT
 
     finalList = []
 
-    for replicate_SS_df, replicate_decay_df in zip(SS_df_list, decay_df_list):
+    for replicate_SS_df, replicate_decay_df, index in zip(SS_df_list, decay_df_list, range(len(SS_df_list))):
         replicate_SS_dict = SteadyStateDict(replicate_SS_df.to_dict())
         replicate_decay_dict = DecayDict(replicate_decay_df.to_dict(), replicate_SS_dict)
-        replicate_FI_dict = FluorescenceIntensityDict(replicate_SS_dict, replicate_decay_dict, trange, tUpperLimit, includeTRES, includeCT)
-        finalList.append(runReplicate(replicate_FI_dict, trange))
+        replicate_FI_dict = FluorescenceIntensityDict(replicate_SS_dict, replicate_decay_dict, trange, tUpperLimit, includeTRES, includeCT, root)
+        finalList.append(runReplicate(replicate_FI_dict, trange, root))
 
     # adding artificial noise to tau values. REMOVE THIS LATER!
     finalList[1].addNoisePositive()
