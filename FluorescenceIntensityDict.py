@@ -1,4 +1,5 @@
 import numpy as np
+from tkinter import *
 from scipy.optimize import curve_fit, least_squares
 from scipy.stats import chisquare, linregress
 import matplotlib.pyplot as plt
@@ -6,7 +7,8 @@ from Utils import *
 
 class FluorescenceIntensityDict:
 
-    def __init__(self, SS_dict, decay_dict, trange, tUpperLimit, includeTRES, includeCT):
+    def __init__(self, SS_dict, decay_dict, trange, tUpperLimit, includeTRES, includeCT, root):
+        self.root = root
         self.tUpperLimit = tUpperLimit
         self.includeTRES = includeTRES
         self.includeCT = includeCT
@@ -38,7 +40,7 @@ class FluorescenceIntensityDict:
                 taus.append(decay_dict.data[temp][wavenumber][name])
         return taus
 
-    def conductLogNormalFits(self, trange):
+    def conductLogNormalFits(self, trange, root):
         curveFitCount = 0
         curveFitsNeeded = len(trange) * len(self.temps)
         for temp in self.temps:
@@ -56,6 +58,9 @@ class FluorescenceIntensityDict:
                 curveFitCount += 1
                 if curveFitCount % 100 == 0:
                     print("completed {0} out of {1} curve fits".format(curveFitCount, curveFitsNeeded))
+                    Label(root, text="completed {0} out of {1} curve fits".format(curveFitCount, curveFitsNeeded)).grid(row=5, column=1)
+                    root.update_idletasks()
+
 
     def graphNormalizedTRES(self, trange):
         if not self.includeTRES:
@@ -140,13 +145,15 @@ class FluorescenceIntensityDict:
         plt.ylabel("ln(1/tau)")
 
     def addNoisePositive(self):
+        return
         # perturbs all tau values by a random percent change between + 20% of their original value
         for temp in self.temps:
-            self.data[temp]["tau1"] += self.data[temp]["tau1"] * 0.2
-            self.data[temp]["tau2"] += self.data[temp]["tau2"] * 0.2
+            self.data[temp]["tau1"] += 0.1
+            self.data[temp]["tau2"] += 0.1
 
     def addNoiseNegative(self):
+        return
         # perturbs all tau values by a random percent change between - 20% of their original value
         for temp in self.temps:
-            self.data[temp]["tau1"] -= self.data[temp]["tau1"] * 0.2
-            self.data[temp]["tau2"] -= self.data[temp]["tau2"] * 0.2
+            self.data[temp]["tau1"] -= 0.1
+            self.data[temp]["tau2"] -= 0.1
