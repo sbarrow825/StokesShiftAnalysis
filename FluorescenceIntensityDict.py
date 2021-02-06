@@ -9,6 +9,7 @@ class FluorescenceIntensityDict:
 
     def __init__(self, SS_dict, decay_dict, trange, tUpperLimit, includeTRES, includeCT, root):
         self.root = root
+        self.trange = trange
         self.tUpperLimit = tUpperLimit
         self.includeTRES = includeTRES
         self.includeCT = includeCT
@@ -18,7 +19,7 @@ class FluorescenceIntensityDict:
         self.data = {}
         for temp in list(decay_dict.data.keys()):
             self.data[temp] = {}
-            for time in trange:
+            for time in np.arange(0, 10 + 0.01, 0.01):
                 self.data[temp][time] = {}
                 for wavenumber in decay_dict.wavenumbers:
                     F = SS_dict.data[temp][wavenumber]
@@ -42,10 +43,10 @@ class FluorescenceIntensityDict:
 
     def conductLogNormalFits(self, trange, root):
         curveFitCount = 0
-        curveFitsNeeded = len(trange) * len(self.temps)
+        curveFitsNeeded = len(np.arange(0, 10 + 0.01, 0.01)) * len(self.temps)
         for temp in self.temps:
             prevGuess = False # get rid of the previous guess from the last temperature
-            for time in trange:
+            for time in np.arange(0, 10 + 0.01, 0.01):
                 xData = list(self.data[temp][time].keys())
                 yData = list(self.data[temp][time].values())
                 if not prevGuess: # if this is the first curve fit for this temperature
@@ -70,11 +71,11 @@ class FluorescenceIntensityDict:
         for temp in self.temps: # for each temperature
             plt.figure(plotCounter)
             for time in list(self.data[temp].keys()): # for each time in this temperature
-                if not counter % (len(trange) // 5): # plots 10 evenly spaced time points per TRES regardless of trange length
-                    xModelData = np.linspace(min(self.wavenumbers), max(self.wavenumbers), 100) # sample 100 evenly spaced points in our wavenumber domain
-                    yModelData = [curveFunc(wavenumber, *self.data[temp][time]["fitParams"]) for wavenumber in xModelData]
-                    maxIntensity = max(yModelData)
-                    yModelDataNormalized = [data / maxIntensity for data in yModelData]
+                xModelData = np.linspace(min(self.wavenumbers), max(self.wavenumbers), 100) # sample 100 evenly spaced points in our wavenumber domain
+                yModelData = [curveFunc(wavenumber, *self.data[temp][time]["fitParams"]) for wavenumber in xModelData]
+                maxIntensity = max(yModelData)
+                yModelDataNormalized = [data / maxIntensity for data in yModelData]
+                if time == 0 or time == np.arange(0, 10 + 0.01, 0.01)[-1]:
                     plt.plot(xModelData, yModelDataNormalized, label=str(round(time, 2)) + " ns")
                 counter += 1
             plotCounter += 1
@@ -89,7 +90,7 @@ class FluorescenceIntensityDict:
         for temp in self.temps: # for every temperature
             xData, yData = [], [] # reset x and y data to empty lists for each new temperature
             counter = 0
-            peakEmmisionMaximaSS = self.data[temp][self.tUpperLimit]["vp"] # vInf = final peak emmision maxima in time range
+            peakEmmisionMaximaSS = self.data[temp][self.trange[-1]]["vp"] # vInf = final peak emmision maxima in time range
             for time in list(self.data[temp].keys()): # for each time at this temperature
                 if not time:
                     self.data[temp][time]["ct"] = 1 # if time = 0, ct = 1
@@ -108,10 +109,16 @@ class FluorescenceIntensityDict:
                 plt.scatter(xData, yData)
 
     def fitTwoExponentialDecays(self, trange):
+        figure = 250
         prevGuess = [0.5, 0.5, 5] # start out with hardcoded initial guesses for the curve fit
         for temp in self.temps:
+            figure += 1
             xData = list(self.data[temp].keys()) # all times at this temperature
             yData = [self.data[temp][time]["ct"] for time in xData] # all ct values at this temperature
+            fractionOfData = self.tUpperLimit/10 #ns
+            dataRange = round(len(xData)*fractionOfData)
+            xData = xData[:dataRange]
+            yData = yData[:dataRange]
             popt, pcov = curve_fit(twoExpDecay, xData, yData, p0=prevGuess, bounds=((0, -np.inf, -np.inf), (1, np.inf, np.inf))) # use the previous curvefit paraments as the initial guess for this fit
             self.data[temp]["tau1"] = popt[1]
             self.data[temp]["tau2"] = popt[2]
@@ -119,12 +126,12 @@ class FluorescenceIntensityDict:
             yModelData = [twoExpDecay(time, *popt) for time in xData] # plugging our xData into our curvefit model
             chiSquared = chisquare(yData, f_exp=yModelData)[0] # goodness of fit parameter calculation
             if self.includeCT:
+                plt.figure(figure)
                 plt.plot(xData, yModelData, label=str(temp) + " deg C, chi^2 = " + str(round(chiSquared, 2)))
-        if self.includeCT:
-            plt.legend()
-            plt.title("Temperature Dependent Stokes Shift Decays")
-            plt.xlabel('Time (ns)')
-            plt.ylabel("Normalized c(t)")
+                plt.legend()
+                plt.title("{0} deg C Temperature Dependent Stokes Shift Decays".format(temp))
+                plt.xlabel('Time (ns)')
+                plt.ylabel("Normalized c(t)")
 
     def ArrheniusPlot(self, trange):
         plt.figure(300)
@@ -144,16 +151,16 @@ class FluorescenceIntensityDict:
         plt.xlabel('Temperature (1/K)')
         plt.ylabel("ln(1/tau)")
 
-    def addNoisePositive(self):
-        return
-        # perturbs all tau values by a random percent change between + 20% of their original value
-        for temp in self.temps:
-            self.data[temp]["tau1"] += 0.1
-            self.data[temp]["tau2"] += 0.1
+    # def addNoisePositive(self):
+    #     return
+    #     # perturbs all tau values by a random percent change between + 20% of their original value
+    #     for temp in self.temps:
+    #         self.data[temp]["tau1"] += 0.1
+    #         self.data[temp]["tau2"] += 0.1
 
-    def addNoiseNegative(self):
-        return
-        # perturbs all tau values by a random percent change between - 20% of their original value
-        for temp in self.temps:
-            self.data[temp]["tau1"] -= 0.1
-            self.data[temp]["tau2"] -= 0.1
+    # def addNoiseNegative(self):
+    #     return
+    #     # perturbs all tau values by a random percent change between - 20% of their original value
+    #     for temp in self.temps:
+    #         self.data[temp]["tau1"] -= 0.1
+    #         self.data[temp]["tau2"] -= 0.1

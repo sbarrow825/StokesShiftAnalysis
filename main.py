@@ -21,27 +21,29 @@ def runReplicate(FI_dict, trange, root):
     return FI_dict
 
 def findSteadyStateData(steadyStateFilename):
-    SS_filename = filedialog.askopenfilename(initialdir="/", title="Select A File", filetypes=(("Excel Files","*.xlsx"), ("all files", "*.*")))
+    SS_filename = filedialog.askopenfilename(initialdir="/", title="Select A File", filetypes=[("Excel files", ".xlsx .xls")])
     steadyStateFilename.config(text=SS_filename)    
 
 def findDecayData(decayFilename):
-    decay_filename = filedialog.askopenfilename(initialdir="/", title="Select A File", filetypes=(("Excel Files","*.xlsx"), ("all files", "*.*")))
+    decay_filename = filedialog.askopenfilename(initialdir="/", title="Select A File", filetypes=[("Excel files", ".xlsx .xls")])
     decayFilename.config(text=decay_filename)
 
-def runAnalysis(SS_pathname, decay_pathname, tUpperLimit, includeTRES, includeCT, root):
+def runAnalysis(SS_pathname, decay_pathname, tUpperLimit, tIncrement, includeTRES, includeCT, root):
 
-    trange = np.linspace(0, tUpperLimit, 1001, endpoint=True)
+    trange = np.arange(0, tUpperLimit + tIncrement, tIncrement)
+
+    print(includeTRES)
 
     SS_df = pd.read_excel(SS_pathname)
 
     replicates = list(SS_df.to_dict()["Wavelength"].values()).count('Wavelength') # counts how many replicates are in the given data
 
-    replicateConfirmation = messagebox.askyesnocancel(message="Detected data with {0} replicates, is this correct?".format(replicates))
+    replicateConfirmation = messagebox.askyesnocancel(message="Detected data with {0} replicates, is this correct?".format(replicates+1))
 
     if not replicateConfirmation:
         sys.exit("Incorrect number of replicates detected, exiting program")
 
-    print("detected data with {0} replicates".format(replicates))
+    print("detected data with {0} replicates ({1} total runs)".format(replicates, replicates+1))
 
     wavelengthCount = len(splitCol(list(SS_df.to_dict()["Wavelength"].values()), "Wavelength")[0]) # counts how many wavelengths are in the given data
 
@@ -89,8 +91,8 @@ def runAnalysis(SS_pathname, decay_pathname, tUpperLimit, includeTRES, includeCT
         finalList.append(runReplicate(replicate_FI_dict, trange, root))
 
     # adding artificial noise to tau values. REMOVE THIS LATER!
-    finalList[1].addNoisePositive()
-    finalList[2].addNoiseNegative()
+    # finalList[1].addNoisePositive()
+    # finalList[2].addNoiseNegative()
 
     plt.figure(300)
 
@@ -141,22 +143,26 @@ decayButton.grid(row=1, column=0)
 decayFilename = Label(root, text="None selected")
 decayFilename.grid(row=1, column=1, columnspan=2)
 
-# def run(steadyStateButton, decayButton, tUpperLimit, includeTRES, includeCT):
-#     runAnalysis(steadyStateButton["text"], decayButton["text"], tUpperLimit, includeTRES, includeCT)
-
-includeTRES = IntVar()
+includeTRES = BooleanVar()
 includeTRESbutton = Checkbutton(root, text="Include TRES plots", var=includeTRES)
 includeTRESbutton.grid(row=2, column=0)
 
-includeCT = IntVar()
+includeCT = BooleanVar()
 includeCTbutton = Checkbutton(root, text="Include normalized c(t) plot", var=includeCT)
 includeCTbutton.grid(row=3, column=0)
 
 upperLimitEntryLabel = Label(root, text="Time upper limit (ns)")
+upperLimitEntryLabel.grid(row=4, column=0)
 upperLimitEntry = Entry(root)
-tUpperLimit = 5
+upperLimitEntry.grid(row=4, column=1)
 
-runButton = Button(root, text="Run", command=lambda: runAnalysis(steadyStateFilename["text"], decayFilename["text"], tUpperLimit, includeTRES, includeCT, root))
-runButton.grid(row=4, column=0)
+incrementEntryLabel = Label(root, text="Time increment (ns)")
+incrementEntryLabel.grid(row=5, column=0)
+incrementEntry = Entry(root)
+incrementEntry.grid(row=5, column=1)
+
+
+runButton = Button(root, text="Run", command=lambda: runAnalysis(steadyStateFilename["text"], decayFilename["text"], eval(upperLimitEntry.get()), eval(incrementEntry.get()), includeTRES.get(), includeCT.get(), root))
+runButton.grid(row=6, column=0)
 
 root.mainloop()
